@@ -1,0 +1,103 @@
+# Requests for the VS Code "REST Client" extension or JetBrains HTTP Client.
+# Start the API first: uvicorn churn_radar.api:app --reload
+
+@base = http://127.0.0.1:8000
+@tenant = demo
+
+### Liveness
+GET {{base}}/healthz
+
+### Current scoring config (each tenant starts with the default)
+GET {{base}}/config
+X-Tenant-Id: {{tenant}}
+
+### Score a small JSON batch
+POST {{base}}/score
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "customers": [
+    {
+      "customer_id": "C-1001",
+      "name": "Acme Logistics",
+      "mrr": 4200,
+      "metrics": {
+        "days_since_last_login": 21,
+        "tickets_last_30d": 6,
+        "usage_trend": -0.3,
+        "nps": 4,
+        "payment_delays": 1,
+        "seats_utilization": 0.45
+      }
+    },
+    {
+      "customer_id": "C-1002",
+      "name": "Globex Foods",
+      "mrr": 900,
+      "metrics": {
+        "days_since_last_login": 1,
+        "tickets_last_30d": 1,
+        "usage_trend": 0.12,
+        "nps": 9,
+        "payment_delays": 0,
+        "seats_utilization": 0.9
+      }
+    }
+  ]
+}
+
+### Score the sample CSV (JSON response)
+POST {{base}}/score/csv
+X-Tenant-Id: {{tenant}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="customers.csv"
+Content-Type: text/csv
+
+< ./customers.csv
+--boundary--
+
+### Same upload, CSV download
+POST {{base}}/score/csv?format=csv
+X-Tenant-Id: {{tenant}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="customers.csv"
+Content-Type: text/csv
+
+< ./customers.csv
+--boundary--
+
+### Follow-up queue: top 10 by revenue at risk from the last scored batch
+GET {{base}}/queue?limit=10
+X-Tenant-Id: {{tenant}}
+
+### Fit weights from the labeled sample (dry run; add &apply=true to save them)
+POST {{base}}/calibrate/csv?test_size=0.3&seed=42
+X-Tenant-Id: {{tenant}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="customers.csv"
+Content-Type: text/csv
+
+< ./customers.csv
+--boundary--
+
+### Replace the config (weights are normalized, must be >= 0 with a positive sum)
+PUT {{base}}/config
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "metrics": [
+    {"name": "days_since_last_login", "direction": "higher_is_worse", "lower": 0, "upper": 30, "weight": 2},
+    {"name": "usage_trend", "direction": "higher_is_better", "lower": -0.5, "upper": 0.5, "weight": 2},
+    {"name": "payment_delays", "direction": "higher_is_worse", "lower": 0, "upper": 3, "weight": 1}
+  ],
+  "thresholds": {"healthy": 80, "watch": 60, "at_risk": 40},
+  "top_factors": 2
+}

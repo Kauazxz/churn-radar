@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "churn-radar"
+version = "0.1.0"
+description = "Customer health scoring and churn-risk prioritization API."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Kauã Araujo de Souza", email = "araujokaua8@gmail.com" }]
+requires-python = ">=3.12"
+keywords = ["churn", "customer-success", "health-score", "fastapi", "scikit-learn"]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.9",
+    "python-multipart>=0.0.18",
+    "uvicorn>=0.32",
+    "numpy>=2.0",
+    "scikit-learn>=1.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.8", "mypy>=1.13"]
+
+[project.scripts]
+churn-radar = "churn_radar.api:serve"
+
+[project.urls]
+Repository = "https://github.com/Kauazxz/churn-radar"
+
+[tool.hatch.build.targets.wheel]
+packages = ["churn_radar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "error",
+    # Starlette 1.x prefers the `httpx2` package for its TestClient; `httpx` still works.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "PT", "N"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["sklearn.*"]
+ignore_missing_imports = true
